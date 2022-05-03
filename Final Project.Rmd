@@ -1,0 +1,217 @@
+---
+title: "Final Project CIS546"
+output: html_notebook
+---
+
+```{r}
+credit <- read.csv("CreditCard.csv")
+credit
+```
+
+
+```{r}
+library(tidyverse)
+library(e1071)
+library(caTools)
+```
+
+```{r}
+set.seed(123)
+
+sample = sample.split(credit$Approved, SplitRatio = .75)
+train = subset(credit, sample == TRUE)
+test = subset(credit, sample == FALSE)
+```
+
+#Building Naive Bayes Model
+```{r}
+nb_model <- naiveBayes(Approved ~., data = train)
+nb_model
+```
+#Predict the Class
+```{r}
+# Predict
+nb_prediction <- predict(nb_model,test, type = "class")
+
+# Confusion Matrix
+table(test$Approved, nb_prediction, dnn = c("Actual","Prediction"))
+
+# Output results
+data.frame(test, Prediction = nb_prediction)
+```
+#Predict the probabilities
+```{r}
+nb_prediction_prob <- predict(nb_model,test,type = "raw")
+
+results_prob <- data.frame(Actual = test$Approved, 
+                           PredictionClass = nb_prediction, 
+                           Prediction = nb_prediction_prob)
+results_prob
+```
+
+# Accuracy = (TP+ TN)/(TP+TN+FP+FN)
+```{r}
+tpTN <- nrow(subset(results_prob,Actual == PredictionClass))
+
+testSize <- nrow(test)
+
+accuracy <- tpTN/testSize
+cat("Naive Bayes Classifier Accuracy:", accuracy)
+```
+
+We can conlude that the Naive Bayes model is pretty accurate, having a total accuracy of 83%.
+
+#Building Decision Tree Model
+
+```{r}
+#New packages 
+#install.packages("rpart")
+#install.packages("rpart.plot")
+library(rpart)
+library(rpart.plot)
+```
+
+#Creating CART model
+```{r}
+#create CART
+carttreemodel<- rpart(Approved~., data=train)
+print(carttreemodel)
+```
+
+```{r}
+#visualize the tree "extra" display extra information 
+#"Under" display the info below 
+rpart.plot(carttreemodel, extra= 2, under = TRUE)
+```
+
+#Prediction of CART
+```{r}
+pred.cart <- predict(carttreemodel, newdata = test, type = "class")
+CART.matrix <- table(test$Approved, pred.cart, dnn = c("Actual","Prediction"))
+CART.matrix
+```
+
+#Accuracy of CART
+```{r}
+cartaccuracy <- sum(diag(CART.matrix)/sum(CART.matrix))
+cartaccuracy
+```
+
+#SVM Kernels
+```{r}
+library(kernlab)
+```
+
+
+```{r}
+credit1 <- read.csv("CreditCard.csv", stringsAsFactors = TRUE)
+credit1
+```
+
+
+```{r}
+#Split samples
+credit_train <- credit1[1:12000, ]
+credit_validation <- credit1[12001:16000, ]
+credit_test <- credit1[16001:20000, ]
+```
+
+
+```{r}
+#SVM Model - Train a Simple Linear SVM
+set.seed(12345)
+
+modelSVM <- ksvm(Industry ~ .,
+                 data = credit_train, #Linear Kernel
+                 kernel = "vanilladot")
+
+#Look at basic information about the model
+modelSVM
+
+#Support Vectors = the ones who support where the line is. It separates two classes.
+```
+
+
+#Classify Values and Calculate Accuracy
+#Predict
+```{r}
+pred <- predict(modelSVM, credit_test)
+
+#Generate Confusion Matrix
+confusionMatrix <- table (pred,
+                          credit_test$Industry,
+                          dnn = c("Prediction", "Actual"))
+
+#Calculate Accuracy
+accuracy <- sum(diag(diag(confusionMatrix)) / sum(confusionMatrix))
+cat("Vanilla Kernel Accuracy:", accuracy)
+```
+
+
+
+
+#Neuro Net
+```{r}
+library(neuralnet)
+```
+
+```{r}
+hist(credit$Debt)
+```
+
+```{r}
+#Saphiro test for normality
+shapiro.test(credit$Debt)
+```
+
+
+```{r}
+#Normalization
+# Min - Max Scaling
+normalize <- function(x) {
+  return((x - min (x)) / (max (x) - min(x)))
+}
+```
+
+
+```{r}
+#Normalize Data
+#Apply normalization to entire data frame
+credit_norm <- as.data.frame(lapply(credit, normalize))
+
+#Confirm that the range is now between zero and one
+summary(credit_norm$Debt)
+```
+
+#Simple ANN with only a single hidden neuron
+```{r}
+
+set.seed(12345) #to guarantee 
+
+credit_model <- neuralnet(formula = Debt ~ .,
+                            data = credit_train)
+
+#Visualize it
+plot(credit_model)
+
+```
+
+```{r}
+
+#Predict | Compute values
+#Predict strength (index 9) when given [redit_test[1:8])
+
+#Obtain predicted strength values
+predicted_debt <- model_results$net.result
+```
+#Correlate prediction with actual
+```{r}
+#Examine the correlation between predicted and actual values
+cor(predicted_debt, credit_test$Debt)
+```
+```
+
+
+
+
+
